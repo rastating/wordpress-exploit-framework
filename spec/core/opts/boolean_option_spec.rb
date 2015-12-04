@@ -1,0 +1,81 @@
+require_relative '../../spec_helper'
+
+describe Wpxf::BooleanOption do
+  let(:attrs) { { name: 'test', desc: 'desc' } }
+  let(:subject) { Wpxf::BooleanOption.new(attrs) }
+
+  describe '#valid?' do
+    context 'when an option isn\'t required' do
+      it 'returns true if the value is nil' do
+        expect(subject.valid?(nil)).to be true
+      end
+
+      it 'returns true if the value is empty' do
+        expect(subject.valid?('')).to be true
+      end
+    end
+
+    context 'when an option is required' do
+      let(:attrs) { { name: 'test', desc: 'desc', required: true } }
+
+      it 'returns false if the value is nil' do
+        expect(subject.valid?(nil)).to be false
+      end
+
+      it 'returns false if the value is empty' do
+        expect(subject.valid?('')).to be false
+      end
+    end
+
+    it 'returns true when y, yes, n, no, t, f, 0, 1, '\
+       'true or false is specified' do
+      %w(y yes n no t f 0 1 true false).each do |v|
+        expect(subject.valid?(v)).to be true
+      end
+    end
+
+    it 'returns false when a value other than y, yes, n, '\
+       'no, t, f, 0, 1, true or false is specified' do
+      expect(subject.valid?('test')).to be false
+    end
+  end
+
+  describe '#normalize' do
+    it 'returns the boolean equivalent of the value passed' do
+      expect(subject.normalize('y')).to be true
+      expect(subject.normalize('yes')).to be true
+      expect(subject.normalize('t')).to be true
+      expect(subject.normalize('1')).to be true
+      expect(subject.normalize('true')).to be true
+      expect(subject.normalize('false')).to be false
+    end
+  end
+
+  describe '#true?' do
+    it 'returns true if the value is a valid true value' do
+      expect(subject.true?('y')).to be true
+      expect(subject.true?('yes')).to be true
+      expect(subject.true?('t')).to be true
+      expect(subject.true?('1')).to be true
+      expect(subject.true?('true')).to be true
+    end
+
+    it 'returns false if the value is not a valid true value' do
+      expect(subject.true?('false')).to be false
+    end
+  end
+
+  describe '#false?' do
+    it 'returns true if the value is not a valid true value' do
+      expect(subject.false?('false')).to be true
+    end
+
+    it 'returns false if the value is a valid true value' do
+      expect(subject.false?('y')).to be false
+      expect(subject.false?('yes')).to be false
+      expect(subject.false?('t')).to be false
+      expect(subject.false?('1')).to be false
+      expect(subject.false?('true')).to be false
+    end
+  end
+end
