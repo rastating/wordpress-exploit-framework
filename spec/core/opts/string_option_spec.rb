@@ -1,0 +1,32 @@
+require_relative '../../spec_helper'
+
+describe Wpxf::StringOption do
+  let(:attrs) { { name: 'test', desc: 'desc' } }
+  let(:subject) { Wpxf::StringOption.new(attrs) }
+
+  before :each do
+    allow(File).to receive(:read).with('/valid').and_return('lorem ipsum')
+    allow(File).to receive(:read).with('/invalid').and_raise(::Errno::ENOENT)
+  end
+
+  describe '#normalize' do
+    it 'returns the value passed if it is a normal string' do
+      expect(subject.normalize('foo')).to eq 'foo'
+    end
+
+    it 'returns the contents of a path if the path is prefixed with "file:"' do
+      expect(subject.normalize('file:/valid')).to eq 'lorem ipsum'
+    end
+
+    it 'returns nil if an error occurs reading a file path' do
+      expect(subject.normalize('file:/invalid')).to be_nil
+    end
+  end
+
+  describe '#valid?' do
+    let(:attrs) { { name: 'test', desc: 'desc', regex: /^lorem\sipsum$/ } }
+    it 'uses the value of a file to validate if one is specified' do
+      expect(subject.valid?('file:/valid')).to be true
+    end
+  end
+end

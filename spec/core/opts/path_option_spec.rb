@@ -1,0 +1,21 @@
+require_relative '../../spec_helper'
+
+describe Wpxf::PathOption do
+  let(:attrs) { { name: 'test', desc: 'desc' } }
+  let(:subject) { Wpxf::PathOption.new(attrs) }
+
+  before :each do
+    allow(File).to receive(:exist?).with('/valid').and_return(true)
+    allow(File).to receive(:exist?).with('/invalid').and_return(false)
+  end
+
+  describe '#valid?' do
+    it 'returns true if the file exists' do
+      expect(subject.valid?('/valid')).to be true
+    end
+
+    it 'returns false if the file doesn\'t exist' do
+      expect(subject.valid?('/invalid')).to be false
+    end
+  end
+end
