@@ -1,0 +1,8 @@
+PreCommit:
+  RuboCop:
+    enabled: true
+    command: ['bundle', 'exec', 'rubocop'] # Invoke within Bundler context
+PrePush:
+  RSpec:
+    enabled: true
+    command: ['bundle', 'exec', 'rspec'] # Invoke within Bundler context
